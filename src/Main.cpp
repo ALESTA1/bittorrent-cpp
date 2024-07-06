@@ -92,7 +92,7 @@ int main(int argc, char *argv[])
     // Flush after every std::cout / std::cerr
     std::cout << std::unitbuf;
     std::cerr << std::unitbuf;
-
+    //testing stage 4
     if (argc < 2)
     {
         std::cerr << "Usage: " << argv[0] << " decode <encoded_value>" << std::endl;
