@@ -54,6 +54,7 @@ json decodeString(string encoded_value, int &id)
     }
     int length = atoll(res.c_str());
     res = "";
+    id++;
     while (length--)
     {
         res += encoded_value[id];
