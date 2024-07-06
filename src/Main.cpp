@@ -52,21 +52,18 @@ json decodeString(string encoded_value, int &id)
         res += encoded_value[id];
         id++;
     }
-    int length = atoi(res.c_str());
+    int length = atoll(res.c_str());
     res = "";
     while (length--)
     {
         res += encoded_value[id];
         id++;
     }
-    return json(res);
+    return res;
 }
 json decode_bencoded_value(const std::string &encoded_value, int &id)
 {
-    if (encoded_value.size() == 0)
-    {
-        throw std::runtime_error("Invalid encoded value: " + encoded_value);
-    }
+
     if (encoded_value[id] == 'i')
     {
         return decodeInteger(encoded_value, id);
