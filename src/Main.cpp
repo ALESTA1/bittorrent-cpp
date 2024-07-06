@@ -7,33 +7,7 @@ using namespace std;
 #include "lib/nlohmann/json.hpp"
 
 using json = nlohmann::json;
-json decode_bencoded_value(const std::string &encoded_value, int &id)
-{
-    if (encoded_value.size() == 0)
-    {
-        throw std::runtime_error("Invalid encoded value: " + encoded_value);
-    }
-    if (encoded_value[id] == 'i')
-    {
-        return decodeInteger(encoded_value, id);
-    }
-    else if (encoded_value[id] == 'd')
-    {
-        return decodeDictionary(encoded_value, id);
-    }
-    else if (encoded_value[id] == 'l')
-    {
-        return decodeList(encoded_value, id);
-    }
-    else if (isdigit(encoded_value[id]))
-    {
-        return decodeString(encoded_value, id);
-    }
-    else
-    {
-        throw std::runtime_error("Invalid encoded value: " + encoded_value);
-    }
-}
+json decode_bencoded_value(const std::string &encoded_value, int &id);
 json decodeInteger(string encoded_value, int &id)
 {
     id++;
@@ -86,6 +60,33 @@ json decodeString(string encoded_value, int &id)
         id++;
     }
     return json(res);
+}
+json decode_bencoded_value(const std::string &encoded_value, int &id)
+{
+    if (encoded_value.size() == 0)
+    {
+        throw std::runtime_error("Invalid encoded value: " + encoded_value);
+    }
+    if (encoded_value[id] == 'i')
+    {
+        return decodeInteger(encoded_value, id);
+    }
+    else if (encoded_value[id] == 'd')
+    {
+        return decodeDictionary(encoded_value, id);
+    }
+    else if (encoded_value[id] == 'l')
+    {
+        return decodeList(encoded_value, id);
+    }
+    else if (isdigit(encoded_value[id]))
+    {
+        return decodeString(encoded_value, id);
+    }
+    else
+    {
+        throw std::runtime_error("Invalid encoded value: " + encoded_value);
+    }
 }
 
 int main(int argc, char *argv[])
