@@ -82,7 +82,7 @@ json decode_bencoded_value(const std::string &encoded_value, int &id)
     }
     else
     {
-        throw std::runtime_error("Invalid encoded value: " + encoded_value);
+        throw std::runtime_error("Invalid encoded value: " + encoded_value + " at index: " + to_string(id));
     }
 }
 
