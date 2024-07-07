@@ -6,7 +6,7 @@
 #include <fstream>
 using namespace std;
 #include "lib/nlohmann/json.hpp"
-
+#include <openssl/sha.h>
 using json = nlohmann::json;
 json decode_bencoded_value(const std::string &encoded_value, int &id);
 json decodeInteger(string encoded_value, int &id)
@@ -87,7 +87,49 @@ json decode_bencoded_value(const std::string &encoded_value, int &id)
         throw std::runtime_error("Invalid encoded value: " + encoded_value + " at index: " + to_string(id));
     }
 }
-
+string jsonToBencode(json value)
+{
+    string res = "";
+    if (value.is_number_integer())
+    {
+        res += "i" + to_string(value.get<int>()) + "e";
+    }
+    else if (value.is_string())
+    {
+        res += to_string(value.get<string>().size()) + ":" + value.get<string>();
+    }
+    else if (value.is_array())
+    {
+        res += "l";
+        for (auto i : value)
+        {
+            res += jsonToBencode(i);
+        }
+        res += "e";
+    }
+    else if (value.is_object())
+    {
+        res += "d";
+        for (auto i : value.items())
+        {
+            res += jsonToBencode(i.key());
+            res += jsonToBencode(i.value());
+        }
+        res += "e";
+    }
+    return res;
+}
+std::string sha1(const std::string &inp)
+{
+    unsigned char hash[SHA_DIGEST_LENGTH];
+    SHA1(reinterpret_cast<const unsigned char *>(inp.c_str()), inp.size(), hash);
+    std::stringstream ss;
+    for (unsigned char i : hash)
+    {
+        ss << std::hex << std::setw(2) << std::setfill('0') << (int)i;
+    }
+    return ss.str();
+}
 int main(int argc, char *argv[])
 {
     // Flush after every std::cout / std::cerr
@@ -128,6 +170,9 @@ int main(int argc, char *argv[])
         json decoded_value = decode_bencoded_value(fileContent, id);
         cout << "Tracker URL: " << decoded_value["announce"].get<string>() << endl;
         cout << "Length: " << decoded_value["info"]["length"].get<int>() << endl;
+        string bencodedInfo = jsonToBencode(decoded_value["info"]);
+        string infoHash = sha1(bencodedInfo);
+        cout << "Info Hash: " << infoHash << endl;
     }
     else
     {
