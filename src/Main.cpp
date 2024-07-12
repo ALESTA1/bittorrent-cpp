@@ -245,15 +245,17 @@ int main(int argc, char *argv[])
         int pieceLength = decoded_value["info"]["piece length"].get<int>();
         cout << "Piece Length: " << pieceLength << endl;
         string pieces = decoded_value["info"]["pieces"].get<string>();
-        vector<string> pieceHashes;
+
+        cout << "Piece Hashes: " << endl;
         for (int i = 0; i < pieces.size(); i += 20)
         {
-            pieceHashes.push_back(pieces.substr(i, 20));
-        }
-        cout << "Piece Hashes: " << endl;
-        for (int i = 0; i < pieceHashes.size(); i++)
-        {
-            cout << pieceHashes[i] << endl;
+            std::string single_piece = decoded_value["info"]["pieces"].get<std::string>().substr(i, 20);
+            std::stringstream ss;
+            for (unsigned char byte : single_piece)
+            {
+                ss << std::hex << std::setw(2) << std::setfill('0') << (int)byte;
+            }
+            std::cout << ss.str() << std::endl;
         }
     }
     else
