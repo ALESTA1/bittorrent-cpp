@@ -265,66 +265,51 @@ int main(int argc, char *argv[])
     }
     else if (command == "peers")
     {
-        std::string filePath = argv[2];
-        std::ifstream file(filePath, std::ios::binary);
-        std::string fileContent((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-        file.close();
+        std::string filename = argv[2];
         int id = 0;
-        json decoded_value = decode_bencoded_value(fileContent, id);
-        string infoHash = sha1(jsonToBencode(decoded_value["info"]));
-        string trackerURL = decoded_value["announce"].get<string>();
-        string peer_id = "00112233445566778899";
-        string port = "6881";
-        string uploaded = "0";
-        string downloaded = "0";
-        string left = to_string(decoded_value["info"]["length"].get<int>());
-        string compact = "1";
-
+        json decoded_data = decode_bencoded_value(filename, id);
+        std::string tracker_url;
+        decoded_data["announce"].get_to(tracker_url);
+        std::string bencoded_info = jsonToBencode(decoded_data["info"]);
+        std::string hash = sha1(bencoded_info);
+        // tracker_url += "/";
+        tracker_url += "?info_hash=" + hash;
+        tracker_url += "&peer_id=ABCDEFGHIJKLMNOPQRST";
+        tracker_url += "&port=6881";
+        tracker_url += "&uploaded=0";
+        tracker_url += "&downloaded=0";
+        tracker_url += "&left=";
+        tracker_url += std::to_string(decoded_data["info"]["length"].get<int>());
+        tracker_url += "&compact=1";
         CURL *curl;
         CURLcode res;
         std::string readBuffer;
-
         curl = curl_easy_init();
         if (curl)
         {
-            // Set the URL for the GET request with parameters
-            std::string url = "trackerURL"; // Add your tracker URL here
-            std::string params = "?info_hash";
-            params += "=" + infoHash;
-            params += "&peer_id=" + peer_id;
-            params += "&port=" + port;
-            params += "&uploaded=" + uploaded;
-            params += "&downloaded=" + downloaded;
-            params += "&left=" + left;
-            params += "&compact=" + compact;
-            curl_easy_setopt(curl, CURLOPT_URL, (url + params).c_str());
-
-            // Set the callback function to handle data received from the server
+            curl_easy_setopt(curl, CURLOPT_URL, tracker_url.c_str());
             curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
-
-            // Pass the readBuffer to the callback function
             curl_easy_setopt(curl, CURLOPT_WRITEDATA, &readBuffer);
-
-            // Perform the request and store the result code
             res = curl_easy_perform(curl);
-
-            // Check for errors
-            if (res != CURLE_OK)
-                fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
-
-            // Always cleanup
             curl_easy_cleanup(curl);
         }
-
-        // Parse the response into a JSON object
-        id = 0;
-        json response = decode_bencoded_value(readBuffer, id);
-        json peers = response["peers"];
-        for (auto peer : peers)
+        json decoded_response;
+        int id2 = 0;
+        decoded_response = decode_bencoded_value(readBuffer, id2);
+        json peers = decoded_response["peers"];
+        std::vector<std::string> peerList;
+        for (const auto &peer : peers)
         {
             std::string ip = peer["ip"].get<std::string>();
             int port = peer["port"].get<int>();
-            std::cout << ip << ":" << port << std::endl;
+            std::string peerAddress = ip + ":" + std::to_string(port);
+            peerList.push_back(peerAddress);
+        }
+
+        std::cout << "Peers:" << std::endl;
+        for (const auto &peer : peerList)
+        {
+            std::cout << peer << std::endl;
         }
     }
     else
