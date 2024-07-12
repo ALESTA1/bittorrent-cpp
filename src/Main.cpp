@@ -120,7 +120,8 @@ string jsonToBencode(json value)
     }
     return res;
 }
-std::string sha1(const std::string& input) {
+std::string sha1(const std::string &input)
+{
     uint32_t h0 = 0x67452301;
     uint32_t h1 = 0xEFCDAB89;
     uint32_t h2 = 0x98BADCFE;
@@ -129,18 +130,23 @@ std::string sha1(const std::string& input) {
     uint64_t bit_length = input.size() * 8;
     std::vector<uint8_t> data(input.begin(), input.end());
     data.push_back(0x80);
-    while (data.size() % 64 != 56) {
+    while (data.size() % 64 != 56)
+    {
         data.push_back(0);
     }
-    for (int i = 7; i >= 0; --i) {
+    for (int i = 7; i >= 0; --i)
+    {
         data.push_back(bit_length >> (i * 8));
     }
-    for (std::size_t i = 0; i < data.size(); i += 64) {
+    for (std::size_t i = 0; i < data.size(); i += 64)
+    {
         uint32_t w[80];
-        for (int j = 0; j < 16; ++j) {
+        for (int j = 0; j < 16; ++j)
+        {
             w[j] = (data[i + j * 4] << 24) | (data[i + j * 4 + 1] << 16) | (data[i + j * 4 + 2] << 8) | data[i + j * 4 + 3];
         }
-        for (int j = 16; j < 80; ++j) {
+        for (int j = 16; j < 80; ++j)
+        {
             w[j] = (w[j - 3] ^ w[j - 8] ^ w[j - 14] ^ w[j - 16]);
             w[j] = (w[j] << 1) | (w[j] >> 31);
         }
@@ -149,18 +155,26 @@ std::string sha1(const std::string& input) {
         uint32_t c = h2;
         uint32_t d = h3;
         uint32_t e = h4;
-        for (int j = 0; j < 80; ++j) {
+        for (int j = 0; j < 80; ++j)
+        {
             uint32_t f, k;
-            if (j < 20) {
+            if (j < 20)
+            {
                 f = (b & c) | ((~b) & d);
                 k = 0x5A827999;
-            } else if (j < 40) {
+            }
+            else if (j < 40)
+            {
                 f = b ^ c ^ d;
                 k = 0x6ED9EBA1;
-            } else if (j < 60) {
+            }
+            else if (j < 60)
+            {
                 f = (b & c) | (b & d) | (c & d);
                 k = 0x8F1BBCDC;
-            } else {
+            }
+            else
+            {
                 f = b ^ c ^ d;
                 k = 0xCA62C1D6;
             }
@@ -228,6 +242,19 @@ int main(int argc, char *argv[])
         string bencodedInfo = jsonToBencode(decoded_value["info"]);
         string infoHash = sha1(bencodedInfo);
         cout << "Info Hash: " << infoHash << endl;
+        int pieceLength = decoded_value["info"]["piece length"].get<int>();
+        cout << "Piece Length: " << pieceLength << endl;
+        string pieces = decoded_value["info"]["pieces"].get<string>();
+        vector<string> pieceHashes;
+        for (int i = 0; i < pieces.size(); i += 20)
+        {
+            pieceHashes.push_back(pieces.substr(i, 20));
+        }
+        cout << "Piece Hashes: " << endl;
+        for (int i = 0; i < pieceHashes.size(); i++)
+        {
+            cout << pieceHashes[i] << endl;
+        }
     }
     else
     {
