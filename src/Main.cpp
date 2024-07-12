@@ -317,7 +317,7 @@ int main(int argc, char *argv[])
         }
 
         // Parse the response into a JSON object
-        int id = 0;
+        id = 0;
         json response = decode_bencoded_value(readBuffer, id);
         json peers = response["peers"];
         for (auto peer : peers)
