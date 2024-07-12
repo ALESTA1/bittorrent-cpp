@@ -216,11 +216,12 @@ int main(int argc, char *argv[]) {
             std::cerr << "Failed to open file: " << filePath << std::endl;
             return 1;
         }
-        std::string fileContent((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-        file.close();
+        std::stringstream buffer;
+        buffer << file.rdbuf();
+        std::string fileContent = buffer.str();
 
-        size_t id = 0;
         try {
+            size_t id = 0;
             json decoded_value = decode_bencoded_value(fileContent, id);
             if (command == "info") {
                 std::cout << "Tracker URL: " << decoded_value["announce"].get<std::string>() << std::endl;
@@ -228,7 +229,11 @@ int main(int argc, char *argv[]) {
 
                 std::string bencodedInfo = jsonToBencode(decoded_value["info"]);
                 std::string infoHash = sha1(bencodedInfo);
-                std::cout << "Info Hash: " << infoHash << std::endl;
+                std::cout << "Info Hash: ";
+                for (char c : infoHash) {
+                    std::cout << std::hex << std::setw(2) << std::setfill('0') << (static_cast<int>(c) & 0xff);
+                }
+                std::cout << std::endl;
 
                 int pieceLength = decoded_value["info"]["piece length"].get<int>();
                 std::cout << "Piece Length: " << pieceLength << std::endl;
@@ -278,9 +283,8 @@ int main(int argc, char *argv[]) {
                     return 1;
                 }
 
-                size_t response_id = 0;
                 try {
-                    json trackerResponseJson = decode_bencoded_value(trackerResponse, response_id);
+                    json trackerResponseJson = json::parse(trackerResponse);
                     std::string peers = trackerResponseJson["peers"].get<std::string>();
                     std::cout << "Peers: " << std::endl;
                     for (size_t i = 0; i < peers.size(); i += 6) {
