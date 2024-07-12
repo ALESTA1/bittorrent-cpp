@@ -14,6 +14,22 @@ size_t WriteCallback(void *contents, size_t size, size_t nmemb, void *userp)
     ((std::string *)userp)->append((char *)contents, size * nmemb);
     return size * nmemb;
 }
+std::string url_encode(const std::string& str) {
+    std::string encoded_str;
+    const std::string unreserved = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.~";
+    
+    for (char c : str) {
+        if (unreserved.find(c) != std::string::npos) {
+            encoded_str += c;
+        } else {
+            encoded_str += '%';
+            encoded_str += "0123456789ABCDEF"[static_cast<unsigned char>(c) >> 4];
+            encoded_str += "0123456789ABCDEF"[static_cast<unsigned char>(c) & 15];
+        }
+    }
+    
+    return encoded_str;
+}
 json decode_bencoded_value(const std::string &encoded_value, int &id);
 json decodeInteger(string encoded_value, int &id)
 {
@@ -265,51 +281,62 @@ int main(int argc, char *argv[])
     }
     else if (command == "peers")
     {
-        std::string filename = argv[2];
+        // Extract the necessary information for the tracker request
+        std::string filePath = argv[2];
+        std::ifstream file(filePath, std::ios::binary);
+        std::string fileContent((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+        file.close();
         int id = 0;
-        json decoded_data = decode_bencoded_value(filename, id);
-        std::string tracker_url;
-        decoded_data["announce"].get_to(tracker_url);
-        std::string bencoded_info = jsonToBencode(decoded_data["info"]);
-        std::string hash = sha1(bencoded_info);
-        // tracker_url += "/";
-        tracker_url += "?info_hash=" + hash;
-        tracker_url += "&peer_id=ABCDEFGHIJKLMNOPQRST";
-        tracker_url += "&port=6881";
-        tracker_url += "&uploaded=0";
-        tracker_url += "&downloaded=0";
-        tracker_url += "&left=";
-        tracker_url += std::to_string(decoded_data["info"]["length"].get<int>());
-        tracker_url += "&compact=1";
-        CURL *curl;
-        CURLcode res;
-        std::string readBuffer;
-        curl = curl_easy_init();
+        json decoded_value = decode_bencoded_value(fileContent, id);
+        std::string trackerURL = decoded_value["announce"].get<std::string>();
+        std::string infoHash = infoHash;
+        std::string peerId = "00112233445566778899";
+        int port = 6881;
+        int uploaded = 0;
+        int downloaded = 0;
+        int left = decoded_value["info"]["length"].get<int>();
+
+        
+        std::string query = "?info_hash=" + url_encode(infoHash) +
+                            "&peer_id=" + url_encode(peerId) +
+                            "&port=" + std::to_string(port) +
+                            "&uploaded=" + std::to_string(uploaded) +
+                            "&downloaded=" + std::to_string(downloaded) +
+                            "&left=" + std::to_string(left) +
+                            "&compact=1";
+
+        // Make the GET request to the tracker
+        std::string trackerResponse;
+        CURL *curl = curl_easy_init();
         if (curl)
         {
-            curl_easy_setopt(curl, CURLOPT_URL, tracker_url.c_str());
+            std::string trackerURLWithQuery = trackerURL + query;
+            curl_easy_setopt(curl, CURLOPT_URL, trackerURLWithQuery.c_str());
             curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
-            curl_easy_setopt(curl, CURLOPT_WRITEDATA, &readBuffer);
-            res = curl_easy_perform(curl);
+            curl_easy_setopt(curl, CURLOPT_WRITEDATA, &trackerResponse);
+            CURLcode res = curl_easy_perform(curl);
+            if (res != CURLE_OK)
+            {
+                std::cerr << "Failed to make a request to the tracker: " << curl_easy_strerror(res) << std::endl;
+                return 1;
+            }
             curl_easy_cleanup(curl);
         }
-        json decoded_response;
-        int id2 = 0;
-        decoded_response = decode_bencoded_value(readBuffer, id2);
-        json peers = decoded_response["peers"];
-        std::vector<std::string> peerList;
-        for (const auto &peer : peers)
-        {
-            std::string ip = peer["ip"].get<std::string>();
-            int port = peer["port"].get<int>();
-            std::string peerAddress = ip + ":" + std::to_string(port);
-            peerList.push_back(peerAddress);
-        }
 
-        std::cout << "Peers:" << std::endl;
-        for (const auto &peer : peerList)
+        // Parse the tracker response
+        int id = 0;
+        json trackerResponseJson = decode_bencoded_value(trackerResponse, id);
+        std::string peers = trackerResponseJson["peers"].get<std::string>();
+
+        // Process the list of peers
+        for (int i = 0; i < peers.size(); i += 6)
         {
-            std::cout << peer << std::endl;
+            std::string peerIP = std::to_string((unsigned char)peers[i]) + "." +
+                                 std::to_string((unsigned char)peers[i + 1]) + "." +
+                                 std::to_string((unsigned char)peers[i + 2]) + "." +
+                                 std::to_string((unsigned char)peers[i + 3]);
+            int peerPort = (unsigned char)peers[i + 4] * 256 + (unsigned char)peers[i + 5];
+            std::cout << peerIP << ":" << peerPort << std::endl;
         }
     }
     else
