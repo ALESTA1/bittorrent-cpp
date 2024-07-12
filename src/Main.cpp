@@ -324,7 +324,7 @@ int main(int argc, char *argv[])
         }
 
         // Parse the tracker response
-        int id = 0;
+        id = 0;
         json trackerResponseJson = decode_bencoded_value(trackerResponse, id);
         std::string peers = trackerResponseJson["peers"].get<std::string>();
 
