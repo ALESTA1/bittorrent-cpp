@@ -7,8 +7,13 @@
 #include <sstream>
 using namespace std;
 #include "lib/nlohmann/json.hpp"
-
+#include <curl/curl.h>
 using json = nlohmann::json;
+size_t WriteCallback(void *contents, size_t size, size_t nmemb, void *userp)
+{
+    ((std::string *)userp)->append((char *)contents, size * nmemb);
+    return size * nmemb;
+}
 json decode_bencoded_value(const std::string &encoded_value, int &id);
 json decodeInteger(string encoded_value, int &id)
 {
@@ -256,6 +261,70 @@ int main(int argc, char *argv[])
                 ss << std::hex << std::setw(2) << std::setfill('0') << (int)byte;
             }
             std::cout << ss.str() << std::endl;
+        }
+    }
+    else if (command == "peers")
+    {
+        std::string filePath = argv[2];
+        std::ifstream file(filePath, std::ios::binary);
+        std::string fileContent((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+        file.close();
+        int id = 0;
+        json decoded_value = decode_bencoded_value(fileContent, id);
+        string infoHash = sha1(jsonToBencode(decoded_value["info"]));
+        string trackerURL = decoded_value["announce"].get<string>();
+        string peer_id = "00112233445566778899";
+        string port = "6881";
+        string uploaded = "0";
+        string downloaded = "0";
+        string left = to_string(decoded_value["info"]["length"].get<int>());
+        string compact = "1";
+
+        CURL *curl;
+        CURLcode res;
+        std::string readBuffer;
+
+        curl = curl_easy_init();
+        if (curl)
+        {
+            // Set the URL for the GET request with parameters
+            std::string url = "trackerURL"; // Add your tracker URL here
+            std::string params = "?info_hash";
+            params += "=" + infoHash;
+            params += "&peer_id=" + peer_id;
+            params += "&port=" + port;
+            params += "&uploaded=" + uploaded;
+            params += "&downloaded=" + downloaded;
+            params += "&left=" + left;
+            params += "&compact=" + compact;
+            curl_easy_setopt(curl, CURLOPT_URL, (url + params).c_str());
+
+            // Set the callback function to handle data received from the server
+            curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
+
+            // Pass the readBuffer to the callback function
+            curl_easy_setopt(curl, CURLOPT_WRITEDATA, &readBuffer);
+
+            // Perform the request and store the result code
+            res = curl_easy_perform(curl);
+
+            // Check for errors
+            if (res != CURLE_OK)
+                fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
+
+            // Always cleanup
+            curl_easy_cleanup(curl);
+        }
+
+        // Parse the response into a JSON object
+        int id = 0;
+        json response = decode_bencoded_value(readBuffer, id);
+        json peers = response["peers"];
+        for (auto peer : peers)
+        {
+            std::string ip = peer["ip"].get<std::string>();
+            int port = peer["port"].get<int>();
+            std::cout << ip << ":" << port << std::endl;
         }
     }
     else
